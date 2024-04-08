@@ -50,3 +50,13 @@ initial_setup_iptables() {
 change_base_policy() {
 	iptables -P INPUT DROP
 }
+
+main() {
+	check_dependencies
+	check_iptables
+	clear_iptables
+	initial_setup_iptables
+	change_base_policy
+}
+
+main
