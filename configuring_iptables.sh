@@ -47,15 +47,11 @@ initial_setup_iptables() {
 	iptables -A INPUT -p icmp -j ACCEPT
 }
 
-change_base_policy() {
-    iptables -P INPUT "$1"
-}
-
-ask_policy() {
-    read -p "Enter policy (ACCEPT or DROP): " user_policy
+ask_default_policy() {
+    read -pr "Enter policy (ACCEPT or DROP): " user_policy
     case "$user_policy" in
         "ACCEPT" | "DROP")
-            change_base_policy "$user_policy"
+            iptables -P INPUT "$user_policy"
             ;;
         *)
             echo "Invalid policy. Please enter either ACCEPT or DROP."
@@ -92,7 +88,7 @@ main() {
 	check_iptables
 	clear_iptables
 	initial_setup_iptables
-	ask_policy
+	ask_default_policy
 	data_collection
 }
 
