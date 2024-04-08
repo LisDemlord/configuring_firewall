@@ -48,7 +48,43 @@ initial_setup_iptables() {
 }
 
 change_base_policy() {
-	iptables -P INPUT DROP
+    iptables -P INPUT "$1"
+}
+
+ask_policy() {
+    read -p "Enter policy (ACCEPT or DROP): " user_policy
+    case "$user_policy" in
+        "ACCEPT" | "DROP")
+            change_base_policy "$user_policy"
+            ;;
+        *)
+            echo "Invalid policy. Please enter either ACCEPT or DROP."
+            exit 1 ;;
+    esac
+}
+
+data_collection() {
+	local ip_data_raw
+	ip_data_raw=$(echo 'SELECT (
+			  CASE family 
+			  WHEN 2 THEN "IP4" 
+			  ELSE family END
+			) AS family, (
+			  CASE protocol 
+			  WHEN 6 THEN "TCP" 
+			  WHEN 17 THEN "UDP" 
+			  ELSE protocol END
+			) AS protocol, local_address, local_port, 
+			  remote_address
+			FROM process_open_sockets 
+			WHERE family IN (2) 
+			AND protocol IN (6, 17) 
+			LIMIT 4;' | osqueryi --json)
+			
+	local ip_data
+	ip_data=$(echo "$ip_data_raw" | jq -r '.[]')
+	
+	echo "$ip_data"
 }
 
 main() {
@@ -56,7 +92,8 @@ main() {
 	check_iptables
 	clear_iptables
 	initial_setup_iptables
-	change_base_policy
+	ask_policy
+	data_collection
 }
 
 main
