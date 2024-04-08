@@ -47,8 +47,8 @@ initial_setup_iptables() {
 	iptables -A INPUT -p icmp -j ACCEPT
 }
 
-ask_default_policy() {
-    read -pr "Enter policy (ACCEPT or DROP): " user_policy
+change_default_policy() {
+    read -r -p "Enter default policy (ACCEPT or DROP): " user_policy
     case "$user_policy" in
         "ACCEPT" | "DROP")
             iptables -P INPUT "$user_policy"
@@ -88,7 +88,7 @@ main() {
 	check_iptables
 	clear_iptables
 	initial_setup_iptables
-	ask_default_policy
+	change_default_policy
 	data_collection
 }
 
