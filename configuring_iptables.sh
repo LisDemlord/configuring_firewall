@@ -131,43 +131,39 @@ formation_of_rules() {
     done
 }
 
-saving_rules() {
-	touch /etc/iptables.rules
-	iptables-save > /etc/iptables.rules
+# saving_rules() {
+# 	touch /etc/iptables.rules
+# 	iptables-save > /etc/iptables.rules
 
-	cat <<EOF | sudo tee "restore_iptables.sh" >/dev/null
-#!/bin/bash
-iptables-restore < /etc/iptables.rules
-exit 0
-EOF
-}
+# 	cat <<EOF | sudo tee "restore_iptables.sh" >/dev/null
+# #!/bin/bash
+# iptables-restore < /etc/iptables.rules
+# exit 0
+# EOF
+# }
 
-create_systemd_service() {
-    local script_path="/home/vm1/restore_iptables.sh"
-    local service_name="restore_iptables_rules"
+# create_systemd_service() {
+#     local script_path="/home/vm1/restore_iptables.sh"
+#     local service_name="restore_iptables_rules"
 
-    # Создание файла службы
-    cat <<EOF | sudo tee "/etc/systemd/system/$service_name.service" >/dev/null
-[Unit]
-Description=My Script Service
-After=network.target
+#     # Создание файла службы
+#     cat <<EOF | sudo tee "/etc/systemd/system/$service_name.service" >/dev/null
+# [Unit]
+# Description=My Script Service
+# After=network.target
 
-[Service]
-Type=simple
-ExecStart=$script_path
+# [Service]
+# Type=simple
+# ExecStart=$script_path
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# [Install]
+# WantedBy=multi-user.target
+# EOF
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable "$service_name.service"
-    sudo systemctl start "$service_name.service"
-}
-
-# Вызов функции
-create_systemd_service
-
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable "$service_name.service"
+#     sudo systemctl start "$service_name.service"
+# }
 
 main() {
     check_dependencies
