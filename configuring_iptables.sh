@@ -40,7 +40,6 @@ clear_iptables() {
     ipset destroy || { echo "Failed to destroy ipset"; exit 1; }
 }
 
-
 initial_setup_iptables() {
     # Добавление правил iptables
     iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || { echo "Failed to add RELATED,ESTABLISHED rule"; exit 1; }
@@ -49,12 +48,11 @@ initial_setup_iptables() {
     iptables -A INPUT -p icmp -j ACCEPT || { echo "Failed to add ICMP rule"; exit 1; }
 }
 
-
 change_default_policy() {
     read -r -p "Enter default policy (ACCEPT or DROP): " user_policy
     case "$user_policy" in
         "ACCEPT" | "DROP")
-            iptables -P INPUT "$user_policy"
+            iptables -P INPUT "$user_policy" || { echo "Failed to set default policy"; exit 1; }
             ;;
         *)
             echo "Invalid policy. Please enter either ACCEPT or DROP."
