@@ -63,41 +63,30 @@ change_default_policy() {
 data_collection() {
     local ip_data_osquery
     ip_data_osquery=$(echo 'SELECT (
-                  CASE family 
-                  WHEN 2 THEN "IP4" 
-                  ELSE family END
-                ) AS family, (
-                  CASE protocol 
-                  WHEN 6 THEN "TCP" 
-                  WHEN 17 THEN "UDP" 
-                  ELSE protocol END
-                ) AS protocol, local_address, local_port, 
-                  remote_address
-                FROM process_open_sockets 
-                WHERE family IN (2) 
-                AND protocol IN (6, 17) 
-                LIMIT 4;' | osqueryi --json)
-    
-    # Проверка на успешность выполнения команды osqueryi
-    if [ $? -ne 0 ]; then
-        echo "Failed to execute osqueryi"
-        exit 1
-    fi
-    
+              CASE family 
+              WHEN 2 THEN "IP4" 
+              ELSE family END
+            ) AS family, (
+              CASE protocol 
+              WHEN 6 THEN "TCP" 
+              WHEN 17 THEN "UDP" 
+              ELSE protocol END
+            ) AS protocol, local_address, local_port, 
+              remote_address
+            FROM process_open_sockets 
+            WHERE family IN (2) 
+            AND protocol IN (6, 17) 
+            LIMIT 4;' | osqueryi --json) || { echo "Failed to collect data"; exit 1; }
+
     echo "$ip_data_osquery"
 }
+
 
 
 formatting_data() {
     local field="$1"
     local formatted_data
-    formatted_data=$(data_collection | jq -r ".[] | .$field")
-
-    # Проверка на успешность выполнения команды jq
-    if [ $? -ne 0 ]; then
-        echo "Failed to format data"
-        exit 1
-    fi
+    formatted_data=$(data_collection | jq -r ".[] | .$field") || { echo "Failed to format data"; exit 1; }
 
     echo "$formatted_data"
 }
@@ -111,14 +100,18 @@ formation_of_rules() {
     net_protocol=$(formatting_data protocol)
     net_remote_address=$(formatting_data remote_address)
 
-    if [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_local_address") ] ||
-       [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_local_port") ] ||
-       [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_protocol") ] ||
-       [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_remote_address") ]; then
+    if [ "$(wc -w <<< "$net_family")" -ne "$(wc -w <<< "$net_local_address")" ] ||
+       [ "$(wc -w <<< "$net_family")" -ne "$(wc -w <<< "$net_local_port")" ] ||
+       [ "$(wc -w <<< "$net_family")" -ne "$(wc -w <<< "$net_protocol")" ] ||
+       [ "$(wc -w <<< "$net_family")" -ne "$(wc -w <<< "$net_remote_address")" ]; then
         echo "Error: different number of items in the connection table"
         exit 1
     fi
 
+    local number_of_connections
+    number_of_connections=$(echo "$net_family" | wc -l)
+
+    echo "$number_of_connections"
     echo -e "\n$net_family\n\n$net_local_address\n\n$net_local_port\n\n$net_protocol\n\n$net_remote_address\n"
 
 }
@@ -137,4 +130,3 @@ main() {
 }
 
 main
-
