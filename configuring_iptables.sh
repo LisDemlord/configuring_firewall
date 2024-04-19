@@ -80,20 +80,11 @@ data_collection() {
 	echo "$ip_data_osquery"
 }
 
-iptables_family() {
-	
-}
-iptables_local_address() {
-	
-}
-iptables_local_port() {
-	
-}
-iptables_protocol() {
-	
-}
-iptables_remote_address() {
-	
+formatting_data() {
+    local field="$1"
+    local formatted_data
+    formatted_data=$(data_collection | jq -r ".[] | .$field")
+    echo "$formatted_data"
 }
 
 main() {
@@ -102,12 +93,11 @@ main() {
 	clear_iptables
 	initial_setup_iptables
 	change_default_policy
-	local ip_data
-	ip_data=$(data_collection)
-	local ip_data_protocol
-	ip_data_protocol=$(echo "$ip_data" | jq -r '.[] | .protocol')
-	echo "$ip_data"
-	echo "$ip_data_protocol"
+	formatting_data family
+	formatting_data local_address
+	formatting_data local_port
+	formatting_data protocol
+	formatting_data remote_address
 }
 
 main
