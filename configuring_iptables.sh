@@ -42,11 +42,13 @@ clear_iptables() {
 
 
 initial_setup_iptables() {
-	iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-	iptables -A INPUT -i lo -j ACCEPT
-	iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
-	iptables -A INPUT -p icmp -j ACCEPT
+    # Добавление правил iptables
+    iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || { echo "Failed to add RELATED,ESTABLISHED rule"; exit 1; }
+    iptables -A INPUT -i lo -j ACCEPT || { echo "Failed to add loopback rule"; exit 1; }
+    iptables -A INPUT -m conntrack --ctstate INVALID -j DROP || { echo "Failed to add INVALID rule"; exit 1; }
+    iptables -A INPUT -p icmp -j ACCEPT || { echo "Failed to add ICMP rule"; exit 1; }
 }
+
 
 change_default_policy() {
     read -r -p "Enter default policy (ACCEPT or DROP): " user_policy
