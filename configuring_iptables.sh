@@ -60,8 +60,8 @@ change_default_policy() {
 }
 
 data_collection() {
-	local ip_data_raw
-	ip_data_raw=$(echo 'SELECT (
+	local ip_data_osquery
+	ip_data_osquery=$(echo 'SELECT (
 			  CASE family 
 			  WHEN 2 THEN "IP4" 
 			  ELSE family END
@@ -76,11 +76,24 @@ data_collection() {
 			WHERE family IN (2) 
 			AND protocol IN (6, 17) 
 			LIMIT 4;' | osqueryi --json)
-			
-	local ip_data
-	ip_data=$(echo "$ip_data_raw" | jq -r '.[]')
 	
-	echo "$ip_data"
+	echo "$ip_data_osquery"
+}
+
+iptables_family() {
+	
+}
+iptables_local_address() {
+	
+}
+iptables_local_port() {
+	
+}
+iptables_protocol() {
+	
+}
+iptables_remote_address() {
+	
 }
 
 main() {
@@ -89,7 +102,12 @@ main() {
 	clear_iptables
 	initial_setup_iptables
 	change_default_policy
-	data_collection
+	local ip_data
+	ip_data=$(data_collection)
+	local ip_data_protocol
+	ip_data_protocol=$(echo "$ip_data" | jq -r '.[] | .protocol')
+	echo "$ip_data"
+	echo "$ip_data_protocol"
 }
 
 main
