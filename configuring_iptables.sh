@@ -24,21 +24,22 @@ check_iptables() {
 }
 
 clear_iptables() {
-# Установка политики по умолчанию для цепочек ВВОДА и ВЫВОДА
-	iptables -P INPUT ACCEPT
-	iptables -P OUTPUT ACCEPT
-	
-	# Очистка всех правил
-	iptables -F
-	# Очистка всех пользовательских цепочек
-	iptables -X
-	# Сброс счетсичков пакетов и байтов
-	iptables -Z
-	
-	# Очистка и уничтожение всех наборов IP-адресов
-	ipset flush
-	ipset destroy
+    # Установка политики по умолчанию для цепочек ВВОДА и ВЫВОДА
+    iptables -P INPUT ACCEPT || { echo "Failed to set INPUT policy"; exit 1; }
+    iptables -P OUTPUT ACCEPT || { echo "Failed to set OUTPUT policy"; exit 1; }
+    
+    # Очистка всех правил
+    iptables -F || { echo "Failed to flush rules"; exit 1; }
+    # Очистка всех пользовательских цепочек
+    iptables -X || { echo "Failed to flush custom chains"; exit 1; }
+    # Сброс счетсичков пакетов и байтов
+    iptables -Z || { echo "Failed to zero counters"; exit 1; }
+    
+    # Очистка и уничтожение всех наборов IP-адресов
+    ipset flush || { echo "Failed to flush ipset"; exit 1; }
+    ipset destroy || { echo "Failed to destroy ipset"; exit 1; }
 }
+
 
 initial_setup_iptables() {
 	iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
