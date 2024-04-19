@@ -87,15 +87,7 @@ formatting_data() {
     echo "$formatted_data"
 }
 
-main() {
-    check_dependencies
-    check_iptables
-    clear_iptables
-    initial_setup_iptables
-    change_default_policy
-
-    #data_collection
-
+formation_of_rules() {
     local net_family net_local_address net_local_port net_protocol net_remote_address
     net_family=$(formatting_data family)
     net_local_address=$(formatting_data local_address)
@@ -103,10 +95,29 @@ main() {
     net_protocol=$(formatting_data protocol)
     net_remote_address=$(formatting_data remote_address)
 
-    echo -e "\n$net_family\n$net_local_address\n$net_local_port\n$net_protocol\n$net_remote_address\n"
-    local idx
-    idx=1
-    echo "$net_local_port" | awk -v counter="$idx" 'NR==counter'
+    if [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_local_address") ] ||
+       [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_local_port") ] ||
+       [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_protocol") ] ||
+       [ $(wc -w <<< "$net_family") -ne $(wc -w <<< "$net_remote_address") ]; then
+        echo "Error: different number of items in the connection table"
+        exit 1
+    fi
+
+    echo -e "\n$net_family\n\n$net_local_address\n\n$net_local_port\n\n$net_protocol\n\n$net_remote_address\n"
+
+}
+
+
+main() {
+    check_dependencies
+    check_iptables
+    clear_iptables
+    initial_setup_iptables
+    change_default_policy
+
+    data_collection
+
+    formation_of_rules
 }
 
 main
