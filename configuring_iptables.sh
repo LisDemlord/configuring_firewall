@@ -19,8 +19,8 @@ check_dependencies() {
 }
 
 check_iptables() {
-	echo -e "STATUS IPTABLES:\n"
-	iptables -L
+	echo -e "\nSTATUS IPTABLES:"
+	iptables -L -vn
 }
 
 clear_iptables() {
@@ -49,6 +49,7 @@ initial_setup_iptables() {
 }
 
 change_default_policy() {
+	echo -e "\n"
     read -r -p "Enter default policy (ACCEPT or DROP): " user_policy
     case "$user_policy" in
         "ACCEPT" | "DROP")
@@ -130,6 +131,42 @@ formation_of_rules() {
     done
 }
 
+saving_rules() {
+	touch /etc/iptables.rules
+	iptables-save > /etc/iptables.rules
+
+	cat <<EOF | sudo tee "restore_iptables.sh" >/dev/null
+#!/bin/bash
+iptables-restore < /etc/iptables.rules
+exit 0
+EOF
+}
+
+create_systemd_service() {
+    local script_path="/home/vm1/restore_iptables.sh"
+    local service_name="restore_iptables_rules"
+
+    # Создание файла службы
+    cat <<EOF | sudo tee "/etc/systemd/system/$service_name.service" >/dev/null
+[Unit]
+Description=My Script Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$script_path
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable "$service_name.service"
+    sudo systemctl start "$service_name.service"
+}
+
+# Вызов функции
+create_systemd_service
 
 
 main() {
@@ -138,10 +175,9 @@ main() {
     clear_iptables
     initial_setup_iptables
     change_default_policy
-
-    data_collection
-
     formation_of_rules
+    check_iptables
+    saving_rules
 }
 
 main
