@@ -88,25 +88,26 @@ formatting_data() {
 }
 
 main() {
-	check_dependencies
-	check_iptables
-	clear_iptables
-	initial_setup_iptables
-	change_default_policy
+    check_dependencies
+    check_iptables
+    clear_iptables
+    initial_setup_iptables
+    change_default_policy
 
-	# formatting_data family
-	# formatting_data local_address
-	# formatting_data local_port
-	# formatting_data protocol
-	# formatting_data remote_address
+    #data_collection
 
-	local net_family, net_local_address, net_local_port, net_protocol, net_remote_address
-	net_family=$(formatting_data family)
-	net_local_address=$(formatting_data local_address)
-	net_local_port=$(formatting_data local_port)
-	net_local_port=$(formatting_data protocol)
-	net_remote_address=$(formatting_data remote_address)
-	echo -e "\n$net_family\n$net_local_address\n$net_local_port\n$net_protocol\n$net_remote_address\n"
+    local net_family net_local_address net_local_port net_protocol net_remote_address
+    net_family=$(formatting_data family)
+    net_local_address=$(formatting_data local_address)
+    net_local_port=$(formatting_data local_port)
+    net_protocol=$(formatting_data protocol)
+    net_remote_address=$(formatting_data remote_address)
+
+    echo -e "\n$net_family\n$net_local_address\n$net_local_port\n$net_protocol\n$net_remote_address\n"
+    local idx
+    idx=1
+    echo "$net_local_port" | awk -v counter="$idx" 'NR==counter'
 }
 
 main
+
