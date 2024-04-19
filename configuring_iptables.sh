@@ -111,10 +111,25 @@ formation_of_rules() {
     local number_of_connections
     number_of_connections=$(echo "$net_family" | wc -l)
 
-    echo "$number_of_connections"
-    echo -e "\n$net_family\n\n$net_local_address\n\n$net_local_port\n\n$net_protocol\n\n$net_remote_address\n"
+    for ((i = 1; i <= number_of_connections; i++)); do
+        family=$(echo "$net_family" | awk "NR==$i")
+        local_address=$(echo "$net_local_address" | awk "NR==$i")
+        local_port=$(echo "$net_local_port" | awk "NR==$i")
+        protocol=$(echo "$net_protocol" | awk "NR==$i")
+        remote_address=$(echo "$net_remote_address" | awk "NR==$i")
 
+        # Создание правил iptables на основе данных
+        echo -e "\nCreating iptables rules for connection $i:"
+        echo "Family: $family"
+        echo "Local Address: $local_address"
+        echo "Local Port: $local_port"
+        echo "Protocol: $protocol"
+        echo -e "Remote Address: $remote_address\n"
+        
+        iptables -A INPUT -p "$protocol" --dport "$local_port" -s "$remote_address" -d "$local_address" -j ACCEPT
+    done
 }
+
 
 
 main() {
