@@ -61,32 +61,47 @@ change_default_policy() {
 }
 
 data_collection() {
-	local ip_data_osquery
-	ip_data_osquery=$(echo 'SELECT (
-			  CASE family 
-			  WHEN 2 THEN "IP4" 
-			  ELSE family END
-			) AS family, (
-			  CASE protocol 
-			  WHEN 6 THEN "TCP" 
-			  WHEN 17 THEN "UDP" 
-			  ELSE protocol END
-			) AS protocol, local_address, local_port, 
-			  remote_address
-			FROM process_open_sockets 
-			WHERE family IN (2) 
-			AND protocol IN (6, 17) 
-			LIMIT 4;' | osqueryi --json)
-	
-	echo "$ip_data_osquery"
+    local ip_data_osquery
+    ip_data_osquery=$(echo 'SELECT (
+                  CASE family 
+                  WHEN 2 THEN "IP4" 
+                  ELSE family END
+                ) AS family, (
+                  CASE protocol 
+                  WHEN 6 THEN "TCP" 
+                  WHEN 17 THEN "UDP" 
+                  ELSE protocol END
+                ) AS protocol, local_address, local_port, 
+                  remote_address
+                FROM process_open_sockets 
+                WHERE family IN (2) 
+                AND protocol IN (6, 17) 
+                LIMIT 4;' | osqueryi --json)
+    
+    # Проверка на успешность выполнения команды osqueryi
+    if [ $? -ne 0 ]; then
+        echo "Failed to execute osqueryi"
+        exit 1
+    fi
+    
+    echo "$ip_data_osquery"
 }
+
 
 formatting_data() {
     local field="$1"
     local formatted_data
     formatted_data=$(data_collection | jq -r ".[] | .$field")
+
+    # Проверка на успешность выполнения команды jq
+    if [ $? -ne 0 ]; then
+        echo "Failed to format data"
+        exit 1
+    fi
+
     echo "$formatted_data"
 }
+
 
 formation_of_rules() {
     local net_family net_local_address net_local_port net_protocol net_remote_address
