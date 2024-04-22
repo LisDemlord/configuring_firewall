@@ -7,6 +7,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+rules_file_path="/etc/iptables.rules"
+restore_iptables_file_path="/etc/restore-iptables.sh"
+
 # Проверка наличия необходимых утилит
 check_dependencies() {
     local dependencies='iptables osqueryi jq awk tr wc'
@@ -82,8 +85,6 @@ data_collection() {
     echo "$ip_data_osquery"
 }
 
-
-
 formatting_data() {
     local field="$1"
     local formatted_data
@@ -131,39 +132,27 @@ formation_of_rules() {
     done
 }
 
-# saving_rules() {
-# 	touch /etc/iptables.rules
-# 	iptables-save > /etc/iptables.rules
+save_iptables_rules() {
+    iptables-save > "$rules_file_path"
+    echo -e "\niptables rules are saved in $RULES_FILE\n"
+}
 
-# 	cat <<EOF | sudo tee "restore_iptables.sh" >/dev/null
-# #!/bin/bash
-# iptables-restore < /etc/iptables.rules
-# exit 0
-# EOF
-# }
+create_restore_iptables() {
+    echo '#!/bin/bash' > "$restore_iptables_file_path"
+    echo 'iptables-restore < /etc/iptables.rules' >> "$restore_iptables_file_path"
+    echo 'exit 0' >> "$restore_iptables_file_path"
+}
 
-# create_systemd_service() {
-#     local script_path="/home/vm1/restore_iptables.sh"
-#     local service_name="restore_iptables_rules"
-
-#     # Создание файла службы
-#     cat <<EOF | sudo tee "/etc/systemd/system/$service_name.service" >/dev/null
-# [Unit]
-# Description=My Script Service
-# After=network.target
-
-# [Service]
-# Type=simple
-# ExecStart=$script_path
-
-# [Install]
-# WantedBy=multi-user.target
-# EOF
-
-#     sudo systemctl daemon-reload
-#     sudo systemctl enable "$service_name.service"
-#     sudo systemctl start "$service_name.service"
-# }
+add_to_startup_restore_script() {
+    if [ -f /etc/rc.local ]; then
+        if ! grep -q "$restore_iptables_file_path" /etc/rc.local; then
+            sudo tee -a /etc/rc.local <<< "$restore_iptables_file_path"
+        fi
+        sudo chmod +x "$restore_iptables_file_path"
+    else
+        echo "Error: /etc/rc.local does not exist"
+    fi
+}
 
 main() {
     check_dependencies
@@ -173,7 +162,9 @@ main() {
     change_default_policy
     formation_of_rules
     check_iptables
-    saving_rules
+    save_iptables_rules
+    create_restore_iptables
+    add_to_startup_restore_script
 }
 
 main
