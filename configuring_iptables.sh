@@ -9,6 +9,7 @@ set -o pipefail
 
 rules_file_path="/etc/iptables.rules"
 restore_iptables_file_path="/etc/restore-iptables.sh"
+service_name="restore-iptables.service"
 
 # Проверка наличия необходимых утилит
 check_dependencies() {
@@ -134,24 +135,30 @@ formation_of_rules() {
 
 save_iptables_rules() {
     iptables-save > "$rules_file_path"
-    echo -e "\niptables rules are saved in $RULES_FILE\n"
+    echo -e "\niptables rules are saved in $rules_file_path\n"
 }
 
 create_restore_iptables() {
     echo '#!/bin/bash' > "$restore_iptables_file_path"
-    echo 'iptables-restore < /etc/iptables.rules' >> "$restore_iptables_file_path"
+    echo "iptables-restore < '$rules_file_path'" >> "$restore_iptables_file_path"
     echo 'exit 0' >> "$restore_iptables_file_path"
 }
 
-add_to_startup_restore_script() {
-    if [ -f /etc/rc.local ]; then
-        if ! grep -q "$restore_iptables_file_path" /etc/rc.local; then
-            sudo tee -a /etc/rc.local <<< "$restore_iptables_file_path"
-        fi
-        sudo chmod +x "$restore_iptables_file_path"
-    else
-        echo "Error: /etc/rc.local does not exist"
-    fi
+сreate_systemd_service() {
+    cat <<EOF | sudo tee "/etc/systemd/system/$service_name" >/dev/null
+	[Unit]
+	Description=My Script Service
+	After=network.target
+	[Service]
+	Type=simple
+	ExecStart=$restore_iptables_file_path
+	[Install]
+	WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable "$service_name"
+    sudo systemctl start "$service_name"
 }
 
 main() {
@@ -164,7 +171,7 @@ main() {
     check_iptables
     save_iptables_rules
     create_restore_iptables
-    add_to_startup_restore_script
+    сreate_systemd_service
 }
 
 main
