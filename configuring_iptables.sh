@@ -81,7 +81,7 @@ data_collection() {
             FROM process_open_sockets 
             WHERE family IN (2) 
             AND protocol IN (6, 17) 
-            LIMIT 4;' | osqueryi --json) || { echo "Failed to collect data"; exit 1; }
+            LIMIT 4;' | osqueryi --json) || { echo "Failed to collect data..."; exit 1; }
 
     echo "$ip_data_osquery"
 }
@@ -89,7 +89,7 @@ data_collection() {
 formatting_data() {
     local field="$1"
     local formatted_data
-    formatted_data=$(data_collection | jq -r ".[] | .$field") || { echo "Failed to format data"; exit 1; }
+    formatted_data=$(data_collection | jq -r ".[] | .$field") || { echo "Failed to format data..."; exit 1; }
 
     echo "$formatted_data"
 }
@@ -121,7 +121,6 @@ formation_of_rules() {
         protocol=$(echo "$net_protocol" | awk "NR==$i")
         remote_address=$(echo "$net_remote_address" | awk "NR==$i")
 
-        # Создание правил iptables на основе данных
         echo -e "\nCreating iptables rules for connection $i:"
         echo "Family: $family"
         echo "Local Address: $local_address"
@@ -129,12 +128,12 @@ formation_of_rules() {
         echo "Protocol: $protocol"
         echo -e "Remote Address: $remote_address\n"
         
-        iptables -A INPUT -p "$protocol" --dport "$local_port" -s "$remote_address" -d "$local_address" -j ACCEPT
+        iptables -A INPUT -p "$protocol" --dport "$local_port" -s "$remote_address" -d "$local_address" -j ACCEPT || { echo "Failed to create a rule..."; exit 1; }
     done
 }
 
 save_iptables_rules() {
-    iptables-save > "$rules_file_path"
+    iptables-save > "$rules_file_path" || { echo "Failed to save a rule..."; exit 1; }
     echo -e "\niptables rules are saved in $rules_file_path\n"
 }
 
@@ -145,7 +144,7 @@ create_restore_iptables() {
 }
 
 сreate_systemd_service() {
-    cat <<EOF | sudo tee "/etc/systemd/system/$service_name" >/dev/null
+    cat <<EOF | tee "/etc/systemd/system/$service_name" > /dev/null
 	[Unit]
 	Description=My Script Service
 	After=network.target
@@ -156,9 +155,9 @@ create_restore_iptables() {
 	WantedBy=multi-user.target
 EOF
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable "$service_name"
-    sudo systemctl start "$service_name"
+    systemctl daemon-reload
+    systemctl enable "$service_name" || { echo "Failed to enable a service..."; exit 1; }
+    systemctl start "$service_name" || { echo "Failed to start a service..."; exit 1; }
 }
 
 main() {
