@@ -180,14 +180,14 @@ create_restore_iptables() {
 	WantedBy=multi-user.target
 EOF
 
-    if systemctl is-enabled "$service_name"; then
-    echo "WARNING: the service is already enabled..."
-else
-    # Перезагружаем конфигурацию systemd
+	# Перезагружаем конфигурацию systemd
     systemctl daemon-reload
-    # Включаем созданную службу
-    systemctl enable "$service_name"
-fi
+    if systemctl is-enabled "$service_name" > /dev/null; then
+    echo "WARNING: the service is already enabled..."
+	else
+	    # Включаем созданную службу
+	    systemctl enable "$service_name"
+	fi
 
 # Запускаем службу
 systemctl start "$service_name"
@@ -205,7 +205,7 @@ main() {
     check_iptables || { echo "ERROR: iptables recheck failed..."; exit 1; }
     save_iptables_rules || { echo "ERROR: saving iptables rules failed..."; exit 1; }
     create_restore_iptables || { echo "ERROR: creating iptables restore script failed..."; exit 1; }
-    create_systemd_service || { echo "ERROR: creating systemd service failed..."; exit 1; }
+    сreate_systemd_service || { echo "ERROR: creating systemd service failed..."; exit 1; }
 }
 
 main
