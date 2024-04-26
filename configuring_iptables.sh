@@ -23,7 +23,7 @@ check_dependencies() {
     done
     
     if [ -n "$missing_dependencies" ]; then
-        echo "Error: The following dependencies are missing or not in PATH:$missing_dependencies"
+        echo "ERROR: The following dependencies are missing or not in PATH:$missing_dependencies"
         exit 1
     fi
 }
