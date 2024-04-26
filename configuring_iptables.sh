@@ -14,13 +14,20 @@ service_name="restore-iptables.service"
 # Проверка наличия необходимых утилит
 check_dependencies() {
     local dependencies='iptables osqueryi jq awk tr wc'
+    local missing_dependencies=""
+    
     for dep in $dependencies; do
         if ! command -v "$dep" >/dev/null 2>&1; then
-            echo "Error: $dep is not installed or not in PATH..."
-            exit 1
+            missing_dependencies+=" $dep"
         fi
     done
+    
+    if [ -n "$missing_dependencies" ]; then
+        echo "Error: The following dependencies are missing or not in PATH:$missing_dependencies"
+        exit 1
+    fi
 }
+
 
 check_iptables() {
 	echo -e "\nSTATUS IPTABLES:"
@@ -29,27 +36,26 @@ check_iptables() {
 
 clear_iptables() {
     # Установка политики по умолчанию для цепочек ВВОДА и ВЫВОДА
-    iptables -P INPUT ACCEPT || { echo "ERROR! Failed to set INPUT policy..."; exit 1; }
-    iptables -P OUTPUT ACCEPT || { echo "ERROR! Failed to set OUTPUT policy..."; exit 1; }
-    
+    iptables -P INPUT ACCEPT
+    iptables -P OUTPUT ACCEPT
     # Очистка всех правил
-    iptables -F || { echo "ERROR! Failed to flush rules..."; exit 1; }
+    iptables -F
     # Очистка всех пользовательских цепочек
-    iptables -X || { echo "ERROR! Failed to flush custom chains..."; exit 1; }
+    iptables -X
     # Сброс счетсичков пакетов и байтов
-    iptables -Z || { echo "ERROR! Failed to zero counters..."; exit 1; }
+    iptables -Z
     
     # Очистка и уничтожение всех наборов IP-адресов
-    ipset flush || { echo "ERROR! Failed to flush ipset..."; exit 1; }
-    ipset destroy || { echo "ERROR! Failed to destroy ipset..."; exit 1; }
+    ipset flush
+    ipset destroy
 }
 
 initial_setup_iptables() {
     # Добавление правил iptables
-    iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || { echo "ERROR! Failed to add RELATED,ESTABLISHED rule..."; exit 1; }
-    iptables -A INPUT -i lo -j ACCEPT || { echo "ERROR! Failed to add loopback rule..."; exit 1; }
-    iptables -A INPUT -m conntrack --ctstate INVALID -j DROP || { echo "ERROR! Failed to add INVALID rule..."; exit 1; }
-    iptables -A INPUT -p icmp -j ACCEPT || { echo "ERROR! Failed to add ICMP rule..."; exit 1; }
+    iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+    iptables -A INPUT -p icmp -j ACCEPT
 }
 
 change_default_policy() {
@@ -59,7 +65,7 @@ change_default_policy() {
     case "$user_policy" in
         "ACCEPT" | "DROP")
             # Если пользователь ввел ACCEPT или DROP, устанавливаем соответствующую политику
-            iptables -P INPUT "$user_policy" || { echo "ERROR! The default policy could not be set..."; exit 1; }
+            iptables -P INPUT "$user_policy"
             ;;
         *)
             # Если введена некорректная политика, выводим сообщение об ошибке и завершаем выполнение
@@ -86,7 +92,7 @@ data_collection() {
             FROM process_open_sockets 
             WHERE family IN (2) 
             AND protocol IN (6, 17) 
-            LIMIT 4;' | osqueryi --json) || { echo "ERROR! The data could not be collected..."; exit 1; }
+            LIMIT 4;' | osqueryi --json)
     
     # Выводим собранные данные
     echo "$ip_data_osquery"
@@ -97,7 +103,7 @@ formatting_data() {
     local field="$1"
     local formatted_data
     # Получаем данные с помощью функции data_collection и обрабатываем их с помощью jq
-    formatted_data=$(data_collection | jq -r ".[] | .$field") || { echo "ERROR! The data could not be formatted..."; exit 1; }
+    formatted_data=$(data_collection | jq -r ".[] | .$field")
     
     # Выводим отформатированные данные
     echo "$formatted_data"
@@ -142,13 +148,13 @@ formation_of_rules() {
         echo -e "Remote address: $remote_address\n"
         
         # Создаем правило iptables для данного соединения
-        iptables -A INPUT -p "$protocol" --dport "$local_port" -s "$remote_address" -d "$local_address" -j ACCEPT || { echo "ERROR! Failed to create a rule..."; exit 1; }
+        iptables -A INPUT -p "$protocol" --dport "$local_port" -s "$remote_address" -d "$local_address" -j ACCEPT
     done
 }
 
 save_iptables_rules() {
     # Функция для сохранения правил iptables
-    iptables-save > "$rules_file_path" || { echo "The rule could not be saved..."; exit 1; }
+    iptables-save > "$rules_file_path"
     echo -e "\niptables rules are saved in $rules_file_path\n"
 }
 
@@ -174,26 +180,32 @@ create_restore_iptables() {
 	WantedBy=multi-user.target
 EOF
 
+    if systemctl is-enabled "$service_name"; then
+    echo "WARNING: the service is already enabled..."
+else
     # Перезагружаем конфигурацию systemd
     systemctl daemon-reload
     # Включаем созданную службу
-    systemctl enable "$service_name" || { echo "ERROR! The service could not be enabled..."; exit 1; }
-    # Запускаем службу
-    systemctl start "$service_name" || { echo "ERROR! The service could not be started..."; exit 1; }
+    systemctl enable "$service_name"
+fi
+
+# Запускаем службу
+systemctl start "$service_name"
+
 }
 
 
 main() {
-    check_dependencies
-    check_iptables
-    clear_iptables
-    initial_setup_iptables
-    change_default_policy
-    formation_of_rules
-    check_iptables
-    save_iptables_rules
-    create_restore_iptables
-    сreate_systemd_service
+    check_dependencies || { echo "ERROR: dependencies not satisfied..."; exit 1; }
+    check_iptables || { echo "ERROR: iptables check failed..."; exit 1; }
+    clear_iptables || { echo "ERROR: iptables clearing failed..."; exit 1; }
+    initial_setup_iptables || { echo "ERROR: initial iptables setup failed..."; exit 1; }
+    change_default_policy || { echo "ERROR: changing default policy failed..."; exit 1; }
+    formation_of_rules || { echo "ERROR: formation of rules failed..."; exit 1; }
+    check_iptables || { echo "ERROR: iptables recheck failed..."; exit 1; }
+    save_iptables_rules || { echo "ERROR: saving iptables rules failed..."; exit 1; }
+    create_restore_iptables || { echo "ERROR: creating iptables restore script failed..."; exit 1; }
+    create_systemd_service || { echo "ERROR: creating systemd service failed..."; exit 1; }
 }
 
 main
