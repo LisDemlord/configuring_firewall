@@ -60,8 +60,8 @@ initial_setup_iptables() {
 
 change_default_policy() {
     # Функция для изменения политики по умолчанию для правил iptables
-	echo -e "\n"
-    read -r -p "Enter the default policy (ACCEPT or DROP): " user_policy
+    echo -e "\nEnter the default policy (ACCEPT or DROP):"
+    read -r user_policy
     case "$user_policy" in
         "ACCEPT" | "DROP")
             # Если пользователь ввел ACCEPT или DROP, устанавливаем соответствующую политику
@@ -154,46 +154,65 @@ formation_of_rules() {
 
 save_iptables_rules() {
     # Функция для сохранения правил iptables
-    iptables-save > "$rules_file_path"
-    echo -e "\niptables rules are saved in $rules_file_path\n"
+    echo -e "\nDo you want to save the current iptables rules? (y/n)"
+    read -r choice
+    if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+        # Сохраните правила iptables в указанном пути к файлу
+        iptables-save > "$rules_file_path"
+        echo -e "\niptables rules are saved in $rules_file_path\n"
+    else
+        # Если пользователь решит не сохранять, отобразите сообщение
+        echo -e "\nWARNING: iptables rules are not saved..."
+    fi
 }
 
 create_restore_iptables() {
     # Функция для создания скрипта восстановления правил iptables
-    echo '#!/bin/bash' > "$restore_iptables_file_path"
-    echo "iptables-restore < '$rules_file_path'" >> "$restore_iptables_file_path"
-    echo 'exit 0' >> "$restore_iptables_file_path"
+    echo "Do you want to create the iptables rules restoration script? (y/n)"
+    read -r choice
+    if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+        echo '#!/bin/bash' > "$restore_iptables_file_path"
+        echo "iptables-restore < '$rules_file_path'" >> "$restore_iptables_file_path"
+        echo 'exit 0' >> "$restore_iptables_file_path"
+        echo -e "\nThe iptables rules restoration script has been created: $restore_iptables_file_path\n"
+    else
+        echo -e "\nThe iptables rules restoration script has not been created..."
+    fi
 }
 
-сreate_systemd_service() {
+create_systemd_service() {
     # Функция для создания systemd-службы
-    cat <<EOF | tee "/etc/systemd/system/$service_name" > /dev/null
-	[Unit]
-	Description=iptables rules service
-	After=network.target
-	
-	[Service]
-	Type=simple
-	ExecStart=$restore_iptables_file_path
-	
-	[Install]
-	WantedBy=multi-user.target
+    echo "Do you want to create a systemd service for iptables? (y/n)"
+    read -r choice
+    if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+        cat <<EOF | tee "/etc/systemd/system/$service_name" > /dev/null
+			[Unit]
+			Description=iptables rules service
+			After=network.target
+
+			[Service]
+			Type=simple
+			ExecStart=$restore_iptables_file_path
+
+			[Install]
+			WantedBy=multi-user.target
 EOF
 
-	# Перезагружаем конфигурацию systemd
-    systemctl daemon-reload
-    if systemctl is-enabled "$service_name" > /dev/null; then
-    echo "WARNING: the service is already enabled..."
-	else
-	    # Включаем созданную службу
-	    systemctl enable "$service_name"
-	fi
+        # Перезагружаем конфигурацию systemd
+        systemctl daemon-reload
+        if systemctl is-enabled "$service_name" > /dev/null; then
+            echo -e "\nWARNING: The service is already enabled...\n"
+        else
+            # Включаем созданную службу
+            systemctl enable "$service_name"
+        fi
 
-# Запускаем службу
-systemctl start "$service_name"
-
+        # Запускаем службу
+        systemctl start "$service_name"
+    else
+        echo "Creation of systemd service for iptables is cancelled."
+    fi
 }
-
 
 main() {
     check_dependencies || { echo "ERROR: dependencies not satisfied..."; exit 1; }
@@ -205,7 +224,7 @@ main() {
     check_iptables || { echo "ERROR: iptables recheck failed..."; exit 1; }
     save_iptables_rules || { echo "ERROR: saving iptables rules failed..."; exit 1; }
     create_restore_iptables || { echo "ERROR: creating iptables restore script failed..."; exit 1; }
-    сreate_systemd_service || { echo "ERROR: creating systemd service failed..."; exit 1; }
+    create_systemd_service || { echo "ERROR: creating systemd service failed..."; exit 1; }
 }
 
 main
